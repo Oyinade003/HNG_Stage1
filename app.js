@@ -1,25 +1,20 @@
-const express = require('express');
+const express = require("express");
 const cors = require('cors');
-const axios = require('axios');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(cors());
+const axios = require("axios");
+
+const PORT = process.env.PORT || 3000;
+
 
 const isPrime = (num) => {
     if (num < 2) return false;
-    for (let i = 2; i * i <= num; i++) {
+    for (let i = 2; i <= Math.sqrt(num); i++) {
         if (num % i === 0) return false;
     }
     return true;
-};
-
-const isArmstrong = (num) => {
-    const digits = num.toString().split('').map(Number);
-    const power = digits.length;
-    const sum = digits.reduce((acc, digit) => acc + Math.pow(digit, power), 0);
-    return sum === num;
 };
 
 const isPerfect = (num) => {
@@ -33,41 +28,52 @@ const isPerfect = (num) => {
     return sum === num && num !== 1;
 };
 
-const classifyNumber = async (num) => {
-    const properties = [];
-    if (isArmstrong(num)) properties.push("armstrong");
-    properties.push(num % 2 === 0 ? "even" : "odd");
-
-    let funFact = "";
-    try {
-        const response = await axios.get(`http://numbersapi.com/${num}/math`);
-        funFact = response.data;
-    } catch (error) {
-        funFact = "Fun fact unavailable.";
-    }
-
-    return {
-        number: num,
-        is_prime: isPrime(num),
-        is_perfect: isPerfect(num),
-        properties,
-        digit_sum: num.toString().split('').reduce((acc, digit) => acc + parseInt(digit), 0),
-        fun_fact: funFact
-    };
+const isArmstrong = (num) => {
+    const digits = num.toString().split("").map(Number);
+    const power = digits.length;
+    return digits.reduce((sum, d) => sum + Math.pow(d, power), 0) === num;
 };
 
-app.get('/api/classify-number', async (req, res) => {
-    const { number } = req.query;
-    const num = parseInt(number, 10);
+app.get("/api/classify-number", async (req, res) => {
+    const number = parseInt(req.query.number);
 
-    if (isNaN(num)) {
-        return res.status(400).json({ number, error: true });
+    if (isNaN(number)) {
+        return res.status(400).json({
+            number: req.query.number,
+            error: true
+        });
     }
 
-    const result = await classifyNumber(num);
-    res.json(result);
+    const properties = [];
+    if (isArmstrong(number)) properties.push("armstrong");
+    properties.push(number % 2 === 0 ? "even" : "odd");
+
+    const digitSum = number.toString().split("").reduce((sum, digit) => sum + parseInt(digit), 0);
+
+    try {
+        const { data } = await axios.get(`http://numbersapi.com/${number}/math?json`);
+        const funFact = data.text;
+
+        res.json({
+            number,
+            is_prime: isPrime(number),
+            is_perfect: isPerfect(number),
+            properties,
+            digit_sum: digitSum,
+            fun_fact: funFact
+        });
+    } catch (error) {
+        res.json({
+            number,
+            is_prime: isPrime(number),
+            is_perfect: isPerfect(number),
+            properties,
+            digit_sum: digitSum,
+            fun_fact: "Fun fact not available."
+        });
+    }
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });
